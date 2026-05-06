@@ -149,6 +149,30 @@
       text-decoration: none;
     }
 
+    /* ── Falling petals ── */
+    .petals-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 0;
+    }
+
+    .fp {
+      position: absolute;
+      top: -20px;
+      border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%;
+      opacity: 0;
+      animation: floatDown linear infinite;
+    }
+
+    @keyframes floatDown {
+      0%   { opacity: 0;   transform: translateY(0)     rotate(0deg); }
+      8%   { opacity: 0.5; }
+      90%  { opacity: 0.3; }
+      100% { opacity: 0;   transform: translateY(108vh) rotate(540deg); }
+    }
+
     /* ── Lightbox ── */
     .lightbox {
       display: none;
@@ -163,8 +187,8 @@
     .lightbox.on { display: flex; }
 
     .lightbox img {
-      max-width: 96vw;
-      max-height: 86vh;
+      max-width: 80vw;
+      max-height: 80vh;
       object-fit: contain;
       border-radius: 10px;
     }
@@ -184,9 +208,30 @@
       justify-content: center;
       cursor: pointer;
     }
+
+    .lb-prev, .lb-next {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.55);
+      font-size: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .lb-prev { left: 12px; }
+    .lb-next { right: 12px; }
   </style>
 </head>
 <body>
+  <div class="petals-bg" id="petalsBg"></div>
   <div class="page">
     <div class="header">
       <div class="header-row">
@@ -310,7 +355,9 @@
   <!-- Lightbox -->
   <div class="lightbox" id="lightbox">
     <div class="lb-close" id="lbClose">✕</div>
+    <div class="lb-prev" id="lbPrev">‹</div>
     <img id="lbImg" src="" alt="">
+    <div class="lb-next" id="lbNext">›</div>
   </div>
 
   <script>
@@ -335,7 +382,7 @@
 
     const flower = document.getElementById('flower');
 
-    function addPetal(src, ring, angle, delay) {
+    function addPetal(src, idx, ring, angle, delay) {
       const pw = document.createElement('div');
       pw.className = `pw ${ring}`;
       pw.style.transform = `rotate(${angle}deg)`;
@@ -350,26 +397,28 @@
 
       ps.appendChild(img);
       pw.appendChild(ps);
-      pw.addEventListener('click', () => openLightbox(src));
+      pw.addEventListener('click', () => openLightbox(idx));
       flower.appendChild(pw);
     }
 
     // Outer ring: 10 petals
     for (let i = 0; i < 10; i++) {
-      addPetal(photos[i], 'outer', (360 / 10) * i, i * 0.07);
+      addPetal(photos[i], i, 'outer', (360 / 10) * i, i * 0.07);
     }
 
     // Inner ring: 6 petals (staggered 18° from outer)
     for (let i = 0; i < 6; i++) {
-      addPetal(photos[10 + i], 'inner', (360 / 6) * i + 18, (10 + i) * 0.07);
+      addPetal(photos[10 + i], 10 + i, 'inner', (360 / 6) * i + 18, (10 + i) * 0.07);
     }
 
     // Lightbox
     const lightbox = document.getElementById('lightbox');
     const lbImg    = document.getElementById('lbImg');
+    let currentIdx = 0;
 
-    function openLightbox(src) {
-      lbImg.src = src;
+    function openLightbox(idx) {
+      currentIdx = idx;
+      lbImg.src = photos[currentIdx];
       lightbox.classList.add('on');
     }
 
@@ -377,8 +426,45 @@
       lightbox.classList.remove('on');
     }
 
+    function prevPhoto() {
+      currentIdx = (currentIdx - 1 + photos.length) % photos.length;
+      lbImg.src = photos[currentIdx];
+    }
+
+    function nextPhoto() {
+      currentIdx = (currentIdx + 1) % photos.length;
+      lbImg.src = photos[currentIdx];
+    }
+
     document.getElementById('lbClose').addEventListener('click', closeLightbox);
+    document.getElementById('lbPrev').addEventListener('click', e => { e.stopPropagation(); prevPhoto(); });
+    document.getElementById('lbNext').addEventListener('click', e => { e.stopPropagation(); nextPhoto(); });
     lightbox.addEventListener('click', e => { if (e.target === lightbox) closeLightbox(); });
+
+    // 스와이프
+    let touchStartX = 0;
+    lightbox.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+    lightbox.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      if (Math.abs(dx) > 40) { dx < 0 ? nextPhoto() : prevPhoto(); }
+    });
+
+    // 떨어지는 꽃잎
+    const bg = document.getElementById('petalsBg');
+    const colors = ['#e8536a','#d63a5f','#ff8fa3','#ffb3c1','#ff6b85','#ffc8d2'];
+    for (let i = 0; i < 14; i++) {
+      const el = document.createElement('div');
+      el.className = 'fp';
+      const s = 8 + Math.random() * 10;
+      el.style.cssText = `
+        left:${Math.random()*100}%;
+        width:${s}px; height:${s*1.35}px;
+        background:${colors[Math.floor(Math.random()*colors.length)]};
+        animation-duration:${5+Math.random()*7}s;
+        animation-delay:${Math.random()*10}s;
+      `;
+      bg.appendChild(el);
+    }
   </script>
 </body>
 </html>
